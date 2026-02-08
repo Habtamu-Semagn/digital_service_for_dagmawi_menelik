@@ -56,13 +56,16 @@ function AppRoutes() {
 }
 
 import { LanguageProvider } from './context/LanguageContext';
+import { ToastProvider } from './context/ToastContext';
 
 export default function App() {
   return (
     <Router>
       <LanguageProvider>
         <AuthProvider>
-          <AppRoutes />
+          <ToastProvider>
+            <AppRoutes />
+          </ToastProvider>
         </AuthProvider>
       </LanguageProvider>
     </Router>

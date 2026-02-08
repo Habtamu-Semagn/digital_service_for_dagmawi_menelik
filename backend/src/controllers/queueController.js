@@ -163,4 +163,45 @@ const registerWalkIn = async (req, res) => {
     }
 };
 
-module.exports = { takeTicket, getMyQueueStatus, getQueueList, updateQueueStatus, registerWalkIn };
+const getMyQueueHistory = async (req, res) => {
+    const userId = req.user.id;
+    try {
+        const history = await prisma.queue.findMany({
+            where: { userId },
+            include: { service: { include: { sector: true } } },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(history);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch queue history', error: error.message });
+    }
+};
+
+const cancelTicket = async (req, res) => {
+    const { queueId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const queue = await prisma.queue.findFirst({
+            where: { id: queueId, userId }
+        });
+
+        if (!queue) {
+            return res.status(404).json({ message: 'Ticket not found' });
+        }
+
+        if (queue.status !== 'WAITING') {
+            return res.status(400).json({ message: 'Only waiting tickets can be cancelled' });
+        }
+
+        await prisma.queue.delete({
+            where: { id: queueId }
+        });
+
+        res.json({ message: 'Ticket cancelled successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to cancel ticket', error: error.message });
+    }
+};
+
+module.exports = { takeTicket, getMyQueueStatus, getQueueList, updateQueueStatus, registerWalkIn, cancelTicket, getMyQueueHistory };
