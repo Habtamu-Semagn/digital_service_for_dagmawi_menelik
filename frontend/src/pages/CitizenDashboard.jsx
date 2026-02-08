@@ -24,36 +24,47 @@ import { Badge } from "@/components/ui/badge";
 import { useLanguage } from '../context/LanguageContext';
 import { useToast } from '../context/ToastContext';
 import ThemeToggle from '../components/ThemeToggle';
+import { translations } from '../lib/translations';
 
 export default function CitizenDashboard() {
-    const { user, logout } = useAuth();
+    const { user, logout, updateProfileUser } = useAuth();
     const { lang, setLang } = useLanguage();
+    const t = translations[lang];
     const { showToast } = useToast();
     const navigate = useNavigate();
     const [sectors, setSectors] = useState([]);
     const [selectedSector, setSelectedSector] = useState(null);
     const [activeQueue, setActiveQueue] = useState(null);
     const [appointments, setAppointments] = useState([]);
-    const [requests, setRequests] = useState([]);
+    const [onlineRequests, setOnlineRequests] = useState([]);
+    const [queueHistory, setQueueHistory] = useState([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('dashboard');
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [profileForm, setProfileForm] = useState({ name: '', phoneNumber: '' });
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
     const [showAppointmentModal, setShowAppointmentModal] = useState(false);
     const [showConfirmCancel, setShowConfirmCancel] = useState(null);
     const [selectedService, setSelectedService] = useState(null);
     const [appointmentForm, setAppointmentForm] = useState({ date: '', timeSlot: '' });
+    const [showRequestModal, setShowRequestModal] = useState(false);
+    const [requestForm, setRequestForm] = useState({ remarks: '' });
 
     const fetchData = async () => {
         try {
-            const [sectorsRes, queueRes, appointmentsRes, historyRes] = await Promise.all([
+            const [sectorsRes, queueRes, appointmentsRes, historyRes, onlineRes] = await Promise.all([
                 api.get('/services/sectors'),
                 api.get('/queues/my-status'),
                 api.get('/appointments/my-appointments'),
-                api.get('/queues/my-history')
+                api.get('/queues/my-history'),
+                api.get('/requests/my-requests')
             ]);
             setSectors(sectorsRes.data);
             setActiveQueue(queueRes.data);
             setAppointments(appointmentsRes.data);
-            setRequests(historyRes.data);
+            setQueueHistory(historyRes.data);
+            setOnlineRequests(onlineRes.data);
         } catch (err) {
             console.error('Failed to fetch dashboard data', err);
             showToast('Failed to fetch dashboard data', 'error');
@@ -106,6 +117,43 @@ export default function CitizenDashboard() {
         }
     };
 
+    const handleUpdateProfile = async (e) => {
+        e.preventDefault();
+        try {
+            const { data } = await api.patch('/auth/profile', profileForm);
+            updateProfileUser(data.user);
+            setIsEditingProfile(false);
+            showToast('Profile updated successfully', 'success');
+        } catch (err) {
+            console.error('Failed to update profile', err);
+            showToast(err.response?.data?.message || 'Failed to update profile', 'error');
+        }
+    };
+
+    const startEditing = () => {
+        setProfileForm({ name: user.name, phoneNumber: user.phoneNumber });
+        setIsEditingProfile(true);
+    };
+
+    const handleUpdatePassword = async (e) => {
+        e.preventDefault();
+        if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+            return showToast('New passwords do not match', 'error');
+        }
+        try {
+            await api.patch('/auth/password', {
+                currentPassword: passwordForm.currentPassword,
+                newPassword: passwordForm.newPassword
+            });
+            setIsChangingPassword(false);
+            setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+            showToast('Password updated successfully', 'success');
+        } catch (err) {
+            console.error('Failed to update password', err);
+            showToast(err.response?.data?.message || 'Failed to update password', 'error');
+        }
+    };
+
     const handleBookAppointment = async (e) => {
         e.preventDefault();
         try {
@@ -122,6 +170,24 @@ export default function CitizenDashboard() {
         }
     };
 
+    const handleSubmitRequest = async (e) => {
+        e.preventDefault();
+        try {
+            await api.post('/requests/submit', {
+                serviceId: selectedService.id,
+                remarks: requestForm.remarks,
+                data: {} // Could add dynamic form data here if needed
+            });
+            setShowRequestModal(false);
+            setRequestForm({ remarks: '' });
+            showToast('Request submitted successfully!', 'success');
+            fetchData();
+        } catch (err) {
+            console.error('Failed to submit request', err);
+            showToast(err.response?.data?.message || 'Failed to submit request', 'error');
+        }
+    };
+
     return (
         <div className="min-h-screen bg-background flex">
             {/* Sidebar */}
@@ -135,17 +201,22 @@ export default function CitizenDashboard() {
 
                 <nav className="flex-1 space-y-2">
                     {[
-                        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                        { id: 'requests', label: 'My Requests', icon: ClipboardList },
-                        { id: 'appointments', label: 'Appointments', icon: Calendar },
-                        { id: 'profile', label: 'Profile', icon: User },
-                        { id: 'settings', label: 'Settings', icon: Settings },
+                        { id: 'dashboard', label: t.dashSettings.replace('Settings', 'Dashboard'), icon: LayoutDashboard }, // Fallback for Dashboard key
+                        { id: 'requests', label: t.dashMyRequests, icon: ClipboardList },
+                        { id: 'appointments', label: t.dashAppointments, icon: Calendar },
+                        { id: 'profile', label: t.dashProfile, icon: User },
+                        { id: 'settings', label: t.dashSettings, icon: Settings },
                     ].map((item, i) => (
                         <Button
                             key={i}
                             variant={activeTab === item.id ? 'secondary' : 'ghost'}
                             className={`w-full justify-start gap-4 h-12 rounded-xl font-bold ${activeTab === item.id ? 'bg-primary/10 text-primary' : 'text-muted-foreground'}`}
-                            onClick={() => setActiveTab(item.id)}
+                            onClick={() => {
+                                if (item.id === 'dashboard') {
+                                    item.label = lang === 'en' ? 'Dashboard' : 'ዳሽቦርድ';
+                                }
+                                setActiveTab(item.id);
+                            }}
                         >
                             <item.icon className="w-5 h-5" />
                             {item.label}
@@ -184,7 +255,7 @@ export default function CitizenDashboard() {
                                 <div className="text-[10px] font-bold text-primary uppercase">Citizen</div>
                             </div>
                             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black">
-                                {user?.name?.[0]}
+                                <User className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
@@ -292,16 +363,19 @@ export default function CitizenDashboard() {
                                                         <Button
                                                             className="w-full rounded-2xl h-12 font-black mt-4"
                                                             onClick={() => {
+                                                                setSelectedService(service);
                                                                 if (service.mode === 'QUEUE') {
                                                                     handleTakeTicket(service.id);
-                                                                } else {
-                                                                    setSelectedService(service);
+                                                                } else if (service.mode === 'APPOINTMENT') {
                                                                     setShowAppointmentModal(true);
+                                                                } else if (service.mode === 'ONLINE') {
+                                                                    setShowRequestModal(true);
                                                                 }
                                                             }}
                                                             disabled={service.mode === 'QUEUE' && activeQueue !== null}
                                                         >
-                                                            {service.mode === 'QUEUE' ? 'Take Queue Ticket' : 'Book Appointment'}
+                                                            {service.mode === 'QUEUE' ? 'Take Queue Ticket' :
+                                                                service.mode === 'APPOINTMENT' ? 'Book Appointment' : 'Submit Application'}
                                                         </Button>
                                                     </div>
                                                 </Card>
@@ -362,33 +436,102 @@ export default function CitizenDashboard() {
                             </div>
                         )}
 
-                        {activeTab === 'requests' && (
-                            <section className="space-y-6 animate-in fade-in duration-500">
-                                <h3 className="text-3xl font-black">My Requests</h3>
-                                {requests.length > 0 ? (
-                                    <div className="grid gap-4">
-                                        {requests.map((req, i) => (
-                                            <Card key={i} className="rounded-3xl p-6 border-border bg-card flex items-center justify-between">
-                                                <div className="flex items-center gap-6">
-                                                    <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black">
-                                                        #{req.ticketNumber}
-                                                    </div>
-                                                    <div>
-                                                        <h4 className="font-black text-lg">{req.service?.name}</h4>
-                                                        <p className="text-sm text-muted-foreground font-semibold">{new Date(req.createdAt).toLocaleDateString()}</p>
-                                                    </div>
-                                                </div>
-                                                <Badge variant={req.status === 'COMPLETED' ? 'success' : req.status === 'REJECTED' ? 'destructive' : 'secondary'} className="rounded-lg font-bold">
-                                                    {req.status}
-                                                </Badge>
-                                            </Card>
-                                        ))}
+                        {showRequestModal && (
+                            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+                                <Card className="w-full max-w-md rounded-[40px] p-8 border-none shadow-2xl relative overflow-hidden">
+                                    <div className="absolute top-0 left-0 w-full h-2 bg-primary" />
+                                    <div className="space-y-6">
+                                        <div>
+                                            <h3 className="text-3xl font-black mb-2">Online Application</h3>
+                                            <p className="text-muted-foreground font-semibold">For {selectedService?.name}</p>
+                                        </div>
+
+                                        <form onSubmit={handleSubmitRequest} className="space-y-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-black uppercase text-muted-foreground ml-1">Additional Remarks</label>
+                                                <textarea
+                                                    className="w-full h-32 rounded-2xl border border-border bg-background p-4 font-semibold outline-none focus:border-primary transition-colors"
+                                                    placeholder="Describe your request or provide necessary details..."
+                                                    value={requestForm.remarks}
+                                                    onChange={e => setRequestForm({ ...requestForm, remarks: e.target.value })}
+                                                />
+                                            </div>
+
+                                            <div className="bg-muted/30 p-4 rounded-2xl border border-dashed border-border text-center">
+                                                <p className="text-xs font-bold text-muted-foreground">Digital identification and profile data will be attached automatically.</p>
+                                            </div>
+
+                                            <div className="flex gap-4 pt-4">
+                                                <Button type="button" variant="ghost" className="flex-1 rounded-2xl font-bold h-12" onClick={() => setShowRequestModal(false)}>Cancel</Button>
+                                                <Button type="submit" className="flex-1 rounded-2xl font-black h-12 shadow-lg shadow-primary/20">Submit Request</Button>
+                                            </div>
+                                        </form>
                                     </div>
-                                ) : (
-                                    <Card className="rounded-[32px] p-8 border-border bg-card">
-                                        <p className="text-muted-foreground font-bold italic">You have no active or historical requests yet.</p>
-                                    </Card>
-                                )}
+                                </Card>
+                            </div>
+                        )}
+
+                        {activeTab === 'requests' && (
+                            <section className="space-y-10 animate-in fade-in duration-500">
+                                <div className="space-y-6">
+                                    <h3 className="text-3xl font-black">Online Applications</h3>
+                                    {onlineRequests.length > 0 ? (
+                                        <div className="grid gap-4">
+                                            {onlineRequests.map((req, i) => (
+                                                <Card key={i} className="rounded-3xl p-6 border-border bg-card flex items-center justify-between">
+                                                    <div className="flex items-center gap-6">
+                                                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                                                            <ClipboardList className="w-6 h-6" />
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-black text-lg">{req.service?.name}</h4>
+                                                            <div className="flex items-center gap-4 text-sm font-semibold text-muted-foreground">
+                                                                <span>{req.service?.sector?.name}</span>
+                                                                <span>•</span>
+                                                                <span>{new Date(req.createdAt).toLocaleDateString()}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <Badge variant={req.status === 'COMPLETED' ? 'success' : req.status === 'REJECTED' ? 'destructive' : 'secondary'} className="rounded-lg font-bold">
+                                                        {req.status}
+                                                    </Badge>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <Card className="rounded-[32px] p-8 border-border bg-card">
+                                            <p className="text-muted-foreground font-bold italic">No online applications found.</p>
+                                        </Card>
+                                    )}
+                                </div>
+
+                                <div className="space-y-6">
+                                    <h3 className="text-3xl font-black">Queue History</h3>
+                                    {queueHistory.length > 0 ? (
+                                        <div className="grid gap-4">
+                                            {queueHistory.map((req, i) => (
+                                                <Card key={i} className="rounded-3xl p-6 border-border bg-card flex items-center justify-between opacity-70 hover:opacity-100 transition-opacity">
+                                                    <div className="flex items-center gap-6">
+                                                        <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black">
+                                                            #{req.ticketNumber}
+                                                        </div>
+                                                        <div>
+                                                            <h4 className="font-black text-lg">{req.service?.name}</h4>
+                                                            <p className="text-sm text-muted-foreground font-semibold">{new Date(req.createdAt).toLocaleDateString()}</p>
+                                                        </div>
+                                                    </div>
+                                                    <Badge variant={req.status === 'COMPLETED' ? 'success' : req.status === 'REJECTED' ? 'destructive' : 'secondary'} className="rounded-lg font-bold">
+                                                        {req.status}
+                                                    </Badge>
+                                                </Card>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <Card className="rounded-[32px] p-8 border-border bg-card">
+                                            <p className="text-muted-foreground font-bold italic">No queue history found.</p>
+                                        </Card>
+                                    )}
+                                </div>
                             </section>
                         )}
 
@@ -427,26 +570,125 @@ export default function CitizenDashboard() {
 
                         {activeTab === 'profile' && (
                             <section className="space-y-6 animate-in fade-in duration-500">
-                                <div className="flex items-center gap-6 mb-10">
-                                    <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center text-primary text-4xl font-black">
-                                        {user?.name?.[0]}
+                                <div className="flex items-center justify-between mb-10">
+                                    <div className="flex items-center gap-6">
+                                        <div className="w-24 h-24 rounded-3xl bg-primary/10 flex items-center justify-center text-primary text-4xl font-black">
+                                            {/* {user?.name?.[0]} */}
+                                            <User className="w-12 h-12" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-3xl font-black">{user?.name}</h3>
+                                            <p className="text-muted-foreground font-bold uppercase tracking-widest">{user?.role}</p>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <h3 className="text-3xl font-black">{user?.name}</h3>
-                                        <p className="text-muted-foreground font-bold uppercase tracking-widest">{user?.role}</p>
-                                    </div>
+                                    <Button
+                                        onClick={isEditingProfile ? () => setIsEditingProfile(false) : startEditing}
+                                        variant={isEditingProfile ? "ghost" : "secondary"}
+                                        className="rounded-2xl font-black h-12 px-6"
+                                    >
+                                        {isEditingProfile ? 'Cancel' : 'Edit Profile'}
+                                    </Button>
                                 </div>
+
                                 <div className="grid md:grid-cols-2 gap-6">
-                                    <Card className="rounded-[32px] p-8 border-border bg-card space-y-4">
-                                        <h4 className="font-black text-xl">Account Details</h4>
-                                        <div className="space-y-2">
-                                            <div className="flex justify-between font-bold">
-                                                <span className="text-muted-foreground">Phone Number</span>
-                                                <span>{user?.phoneNumber}</span>
+                                    <Card className="rounded-[32px] p-8 border-border bg-card">
+                                        {isEditingProfile ? (
+                                            <form onSubmit={handleUpdateProfile} className="space-y-6">
+                                                <h4 className="font-black text-xl mb-4">Edit Details</h4>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-black uppercase text-muted-foreground">Full Name</label>
+                                                    <Input
+                                                        value={profileForm.name}
+                                                        onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                                                        className="h-12 rounded-2xl border-border"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <label className="text-sm font-black uppercase text-muted-foreground">Phone Number</label>
+                                                    <Input
+                                                        value={profileForm.phoneNumber}
+                                                        onChange={e => setProfileForm({ ...profileForm, phoneNumber: e.target.value })}
+                                                        className="h-12 rounded-2xl border-border"
+                                                        required
+                                                    />
+                                                </div>
+                                                <Button type="submit" className="w-full h-12 rounded-2xl font-black shadow-lg shadow-primary/20">
+                                                    Save Changes
+                                                </Button>
+                                            </form>
+                                        ) : (
+                                            <div className="space-y-6">
+                                                <h4 className="font-black text-xl">Account Details</h4>
+                                                <div className="space-y-4">
+                                                    <div className="flex justify-between font-bold border-b border-border pb-2">
+                                                        <span className="text-muted-foreground uppercase text-xs">Phone Number</span>
+                                                        <span>{user?.phoneNumber}</span>
+                                                    </div>
+                                                    <div className="flex justify-between font-bold border-b border-border pb-2">
+                                                        <span className="text-muted-foreground uppercase text-xs">User ID</span>
+                                                        <span className="font-mono text-sm">{user?.id?.slice(0, 8)}...</span>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex justify-between font-bold">
-                                                <span className="text-muted-foreground">User ID</span>
-                                                <span>{user?.id?.slice(0, 8)}...</span>
+                                        )}
+                                    </Card>
+
+                                    <Card className="rounded-[32px] p-8 border-border bg-card space-y-4">
+                                        <h4 className="font-black text-xl">Security</h4>
+                                        {isChangingPassword ? (
+                                            <form onSubmit={handleUpdatePassword} className="space-y-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black uppercase text-muted-foreground">Current Password</label>
+                                                    <Input
+                                                        type="password"
+                                                        value={passwordForm.currentPassword}
+                                                        onChange={e => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                                                        className="h-10 rounded-xl border-border"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black uppercase text-muted-foreground">New Password</label>
+                                                    <Input
+                                                        type="password"
+                                                        value={passwordForm.newPassword}
+                                                        onChange={e => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                                                        className="h-10 rounded-xl border-border"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] font-black uppercase text-muted-foreground">Confirm New Password</label>
+                                                    <Input
+                                                        type="password"
+                                                        value={passwordForm.confirmPassword}
+                                                        onChange={e => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                                                        className="h-10 rounded-xl border-border"
+                                                        required
+                                                    />
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <Button type="button" variant="ghost" className="flex-1 h-10 rounded-xl font-bold" onClick={() => setIsChangingPassword(false)}>Cancel</Button>
+                                                    <Button type="submit" className="flex-1 h-10 rounded-xl font-black">Update</Button>
+                                                </div>
+                                            </form>
+                                        ) : (
+                                            <div className="space-y-4">
+                                                <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center justify-between">
+                                                    <div>
+                                                        <p className="text-xs font-black text-primary uppercase">Password Management</p>
+                                                        <p className="text-sm font-bold text-muted-foreground">Keep your account secure</p>
+                                                    </div>
+                                                    <Button variant="outline" size="sm" onClick={() => setIsChangingPassword(true)} className="rounded-xl font-bold">Change</Button>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div className="pt-4 border-t border-border">
+                                            <h4 className="font-black text-xl mb-4">System Information</h4>
+                                            <div className="p-6 bg-muted/30 rounded-2xl border border-border">
+                                                <p className="text-xs font-black text-muted-foreground uppercase mb-2">Registration Date</p>
+                                                <p className="font-black text-lg">Member since 2026</p>
                                             </div>
                                         </div>
                                     </Card>

@@ -25,7 +25,7 @@ const register = async (req, res) => {
             data: {
                 name,
                 phoneNumber,
-                identificationNumber,
+                identificationNumber: identificationNumber || null,
                 password: hashedPassword,
                 role: role || 'CITIZEN'
             }
@@ -76,4 +76,58 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { register, login };
+const updateProfile = async (req, res) => {
+    const { name, phoneNumber } = req.body;
+    const userId = req.user.id;
+
+    try {
+        // Check if phone number is taken by another user
+        if (phoneNumber) {
+            const existingUser = await prisma.user.findFirst({
+                where: {
+                    phoneNumber,
+                    NOT: { id: userId }
+                }
+            });
+            if (existingUser) {
+                return res.status(400).json({ message: 'Phone number already in use' });
+            }
+        }
+
+        const user = await prisma.user.update({
+            where: { id: userId },
+            data: { name, phoneNumber },
+            select: { id: true, name: true, role: true, phoneNumber: true }
+        });
+
+        res.json({ message: 'Profile updated successfully', user });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to update profile', error: error.message });
+    }
+};
+
+const changePassword = async (req, res) => {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    try {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+
+        const isMatch = await bcrypt.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(400).json({ message: 'Incorrect current password' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        await prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
+
+        res.json({ message: 'Password updated successfully' });
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to update password', error: error.message });
+    }
+};
+
+module.exports = { register, login, updateProfile, changePassword };

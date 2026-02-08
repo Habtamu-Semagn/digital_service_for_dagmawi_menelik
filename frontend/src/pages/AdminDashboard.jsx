@@ -17,7 +17,8 @@ import {
     Search,
     Trash2,
     Edit3,
-    Layers
+    Layers,
+    User as UserIcon
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -25,41 +26,51 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useLanguage } from '../context/LanguageContext';
 import ThemeToggle from '../components/ThemeToggle';
+import { translations } from '../lib/translations';
 
 export default function AdminDashboard() {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const { lang, setLang } = useLanguage();
+    const t = translations[lang];
     const [stats, setStats] = useState({ users: 0, queues: 0, sectors: 0 });
     const [sectors, setSectors] = useState([]);
     const [showSectorModal, setShowSectorModal] = useState(false);
     const [sectorForm, setSectorForm] = useState({ name: '', description: '', icon: '' });
     const [editingSector, setEditingSector] = useState(null);
 
-    // Service Management State
-    const [showServiceManager, setShowServiceManager] = useState(false);
+    const [activeTab, setActiveTab] = useState('overview');
     const [selectedSectorForServices, setSelectedSectorForServices] = useState(null);
+    const [users, setUsers] = useState([]);
+    const [logs, setLogs] = useState([]);
     const [showServiceModal, setShowServiceModal] = useState(false);
     const [editingService, setEditingService] = useState(null);
     const [serviceForm, setServiceForm] = useState({
         name: '', description: '', mode: 'QUEUE', availability: 'Mon-Fri, 8:30am-5:30pm', icon: '', sectorId: ''
     });
-
     const [loading, setLoading] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const fetchData = async () => {
         setLoading(true);
         try {
-            const [sectorsRes, statsRes] = await Promise.all([
-                api.get('/services/sectors'),
-                api.get('/admin/stats')
-            ]);
-            setSectors(sectorsRes.data);
-            setStats(statsRes.data);
+            if (activeTab === 'overview' || activeTab === 'services') {
+                const [sectorsRes, statsRes] = await Promise.all([
+                    api.get('/services/sectors'),
+                    api.get('/admin/stats')
+                ]);
+                setSectors(sectorsRes.data);
+                setStats(statsRes.data);
 
-            // Update selected sector if manager is open
-            if (selectedSectorForServices) {
-                const updated = sectorsRes.data.find(s => s.id === selectedSectorForServices.id);
-                setSelectedSectorForServices(updated);
+                if (selectedSectorForServices) {
+                    const updated = sectorsRes.data.find(s => s.id === selectedSectorForServices.id);
+                    setSelectedSectorForServices(updated);
+                }
+            } else if (activeTab === 'users') {
+                const res = await api.get('/admin/users');
+                setUsers(res.data);
+            } else if (activeTab === 'logs') {
+                const res = await api.get('/admin/logs');
+                setLogs(res.data);
             }
         } catch (err) {
             console.error('Failed to fetch dashboard data', err);
@@ -70,7 +81,7 @@ export default function AdminDashboard() {
 
     useEffect(() => {
         fetchData();
-    }, []);
+    }, [activeTab]);
 
     const handleSaveSector = async (e) => {
         e.preventDefault();
@@ -145,18 +156,18 @@ export default function AdminDashboard() {
 
                 <nav className="flex-1 space-y-2">
                     {[
-                        { label: 'System Overview', icon: BarChart3, active: !showServiceManager },
-                        { label: 'Sectors & Services', icon: Building2, active: showServiceManager },
-                        { label: 'User Directory', icon: Users },
-                        { label: 'System Logs', icon: Activity },
-                        { label: 'Settings', icon: Settings },
-                    ].map((item, i) => (
+                        { id: 'overview', label: t.admOverview, icon: BarChart3 },
+                        { id: 'users', label: t.admUsers, icon: Users },
+                        { id: 'logs', label: t.admLogs, icon: Activity },
+                        { id: 'settings', label: t.dashSettings, icon: Settings },
+                    ].map((item) => (
                         <Button
-                            key={i}
-                            variant={item.active ? 'secondary' : 'ghost'}
-                            className={`w-full justify-start gap-4 h-14 rounded-2xl font-bold transition-all ${item.active ? 'bg-primary/10 text-primary border-r-4 border-primary' : 'text-muted-foreground'}`}
+                            key={item.id}
+                            variant={activeTab === item.id ? 'secondary' : 'ghost'}
+                            onClick={() => setActiveTab(item.id)}
+                            className={`w-full justify-start gap-4 h-14 rounded-2xl font-bold transition-all ${activeTab === item.id ? 'bg-primary/10 text-primary border-r-4 border-primary' : 'text-muted-foreground'}`}
                         >
-                            <item.icon className={`w-5 h-5 ${item.active ? 'text-primary' : ''}`} />
+                            <item.icon className={`w-5 h-5 ${activeTab === item.id ? 'text-primary' : ''}`} />
                             {item.label}
                         </Button>
                     ))}
@@ -176,13 +187,17 @@ export default function AdminDashboard() {
                     <div className="flex items-center gap-4">
                         <Badge className="bg-primary/5 text-primary border-none px-4 py-1 font-bold">LIVE SYSTEM</Badge>
                         <h2 className="text-xl font-black">
-                            {showServiceManager ? `Manage: ${selectedSectorForServices?.name}` : 'Administrative Dashboard'}
+                            {activeTab === 'services' ? `Manage: ${selectedSectorForServices?.name}` :
+                                activeTab === 'users' ? 'User Management' :
+                                    activeTab === 'logs' ? 'System Activities' :
+                                        activeTab === 'settings' ? 'System Settings' :
+                                            'Administrative Dashboard'}
                         </h2>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        {showServiceManager && (
-                            <Button variant="ghost" className="font-bold gap-2" onClick={() => setShowServiceManager(false)}>
+                        {activeTab === 'services' && (
+                            <Button variant="ghost" className="font-bold gap-2" onClick={() => setActiveTab('overview')}>
                                 <ChevronRight className="w-4 h-4 rotate-180" /> Back to Overview
                             </Button>
                         )}
@@ -193,12 +208,22 @@ export default function AdminDashboard() {
                         <Button variant="outline" size="sm" className="rounded-full gap-2 font-bold" onClick={fetchData}>
                             <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Sync Data
                         </Button>
+                        <div className="h-10 w-px bg-border mx-2" />
+                        <div className="flex items-center gap-4">
+                            <div className="text-right">
+                                <div className="text-sm font-black text-foreground">{user?.name}</div>
+                                <div className="text-[10px] font-bold text-destructive uppercase">Administrator</div>
+                            </div>
+                            <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center text-destructive font-black">
+                                <UserIcon className="w-6 h-6" />
+                            </div>
+                        </div>
                     </div>
                 </header>
 
                 <div className="p-8 overflow-y-auto">
                     <div className="max-w-6xl mx-auto space-y-12">
-                        {!showServiceManager ? (
+                        {activeTab === 'overview' && (
                             <>
                                 {/* Summary Stats */}
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -256,7 +281,7 @@ export default function AdminDashboard() {
                                                     </div>
                                                 </div>
                                                 <div className="mt-8 pt-6 border-t border-border flex justify-end">
-                                                    <Button variant="ghost" className="rounded-xl gap-2 text-primary font-black group-hover:translate-x-1 transition-transform" onClick={() => { setSelectedSectorForServices(sector); setShowServiceManager(true); }}>
+                                                    <Button variant="ghost" className="rounded-xl gap-2 text-primary font-black group-hover:translate-x-1 transition-transform" onClick={() => { setSelectedSectorForServices(sector); setActiveTab('services'); }}>
                                                         MANAGE SERVICES <ChevronRight className="w-4 h-4" />
                                                     </Button>
                                                 </div>
@@ -265,7 +290,9 @@ export default function AdminDashboard() {
                                     </div>
                                 </section>
                             </>
-                        ) : (
+                        )}
+
+                        {activeTab === 'services' && (
                             /* Service Manager View */
                             <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                                 <div className="flex items-center justify-between">
@@ -304,11 +331,120 @@ export default function AdminDashboard() {
                                             </div>
                                         </Card>
                                     ))}
-                                    {(!selectedSectorForServices?.services || selectedSectorForServices.services.length === 0) && (
-                                        <div className="py-20 text-center bg-muted/20 rounded-[40px] border-2 border-dashed border-border">
-                                            <p className="text-muted-foreground font-bold italic">No services defined for this sector yet.</p>
+                                </div>
+                            </section>
+                        )}
+
+                        {activeTab === 'users' && (
+                            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-3xl font-black">User Directory</h3>
+                                    <div className="relative w-72">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search users..."
+                                            className="pl-10 rounded-xl"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="grid gap-4">
+                                    {users.filter(u =>
+                                        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                        u.phoneNumber.includes(searchTerm) ||
+                                        u.role.toLowerCase().includes(searchTerm.toLowerCase())
+                                    ).map((u) => (
+                                        <Card key={u.id} className="rounded-3xl p-6 border-border bg-card flex items-center justify-between">
+                                            <div className="flex items-center gap-6">
+                                                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black">
+                                                    <UserIcon className="w-6 h-6" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-black text-lg">{u.name}</h4>
+                                                    <p className="text-sm text-muted-foreground font-bold">{u.phoneNumber}</p>
+                                                </div>
+                                            </div>
+                                            <Badge className={`rounded-lg font-bold ${u.role === 'ADMIN' ? 'bg-destructive/10 text-destructive' : u.role === 'OFFICER' ? 'bg-primary/10 text-primary' : 'bg-secondary text-secondary-foreground'}`}>
+                                                {u.role}
+                                            </Badge>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {activeTab === 'logs' && (
+                            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <div className="flex justify-between items-center">
+                                    <h3 className="text-3xl font-black">System Logs</h3>
+                                    <div className="relative w-72">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Filter logs..."
+                                            className="pl-10 rounded-xl"
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <Card className="rounded-[40px] p-8 border-border bg-card">
+                                    <div className="space-y-6">
+                                        {logs.filter(l =>
+                                            l.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            l.details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            l.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+                                        ).length > 0 ? logs.filter(l =>
+                                            l.action.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            l.details?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                            l.user?.name?.toLowerCase().includes(searchTerm.toLowerCase())
+                                        ).map((log) => (
+                                            <div key={log.id} className="flex gap-6 pb-6 border-b border-border last:border-0">
+                                                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center shrink-0">
+                                                    <Activity className="w-5 h-5 text-muted-foreground" />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <p className="font-bold">{log.action}</p>
+                                                    <p className="text-sm text-muted-foreground">{log.details}</p>
+                                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase text-muted-foreground/60 pt-1">
+                                                        <span>{log.user?.name || 'System'}</span>
+                                                        <span>•</span>
+                                                        <span>{new Date(log.createdAt).toLocaleString()}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )) : (
+                                            <p className="text-center text-muted-foreground font-bold italic py-10">No activities recorded yet.</p>
+                                        )}
+                                    </div>
+                                </Card>
+                            </section>
+                        )}
+
+                        {activeTab === 'settings' && (
+                            <section className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                <h3 className="text-3xl font-black">Global Settings</h3>
+                                <div className="grid md:grid-cols-2 gap-8">
+                                    <Card className="rounded-[40px] p-8 border-border bg-card space-y-6">
+                                        <h4 className="font-black text-xl">Appearance</h4>
+                                        <div className="flex items-center justify-between p-6 bg-muted/30 rounded-3xl border border-border">
+                                            <div>
+                                                <p className="font-black">Theme Mode</p>
+                                                <p className="text-sm text-muted-foreground font-bold">Switch between dark and light</p>
+                                            </div>
+                                            <ThemeToggle />
                                         </div>
-                                    )}
+                                    </Card>
+                                    <Card className="rounded-[40px] p-8 border-border bg-card space-y-6">
+                                        <h4 className="font-black text-xl">System Status</h4>
+                                        <div className="flex items-center justify-between p-6 bg-primary/5 rounded-3xl border border-primary/10">
+                                            <div>
+                                                <p className="font-black text-primary">System is Online</p>
+                                                <p className="text-sm text-primary/60 font-bold">Maintenance mode is disabled</p>
+                                            </div>
+                                            <Badge className="bg-primary text-primary-foreground font-black">ACTIVE</Badge>
+                                        </div>
+                                    </Card>
                                 </div>
                             </section>
                         )}

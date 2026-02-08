@@ -77,4 +77,21 @@ const getAvailableSlots = async (req, res) => {
     }
 };
 
-module.exports = { bookAppointment, getMyAppointments, getAvailableSlots };
+const getSectorAppointments = async (req, res) => {
+    const { sectorId } = req.params;
+    try {
+        const appointments = await prisma.appointment.findMany({
+            where: {
+                service: { sectorId },
+                status: 'SCHEDULED'
+            },
+            include: { user: true, service: true },
+            orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }]
+        });
+        res.json(appointments);
+    } catch (error) {
+        res.status(500).json({ message: 'Failed to fetch sector appointments', error: error.message });
+    }
+};
+
+module.exports = { bookAppointment, getMyAppointments, getAvailableSlots, getSectorAppointments };

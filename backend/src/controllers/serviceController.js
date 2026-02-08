@@ -1,5 +1,15 @@
 const prisma = require('../utils/prisma');
 
+const logAction = async (userId, action, details) => {
+    try {
+        await prisma.systemLog.create({
+            data: { action, details, userId }
+        });
+    } catch (err) {
+        console.error('Failed to create system log', err);
+    }
+};
+
 const getSectors = async (req, res) => {
     try {
         const sectors = await prisma.serviceSector.findMany({
@@ -17,6 +27,7 @@ const createSector = async (req, res) => {
         const sector = await prisma.serviceSector.create({
             data: { name, description, icon }
         });
+        await logAction(req.user.id, 'CREATE_SECTOR', `Created sector: ${name}`);
         res.status(201).json(sector);
     } catch (error) {
         res.status(500).json({ message: 'Failed to create sector', error: error.message });
@@ -29,6 +40,7 @@ const createService = async (req, res) => {
         const service = await prisma.service.create({
             data: { name, description, mode, availability, icon, sectorId }
         });
+        await logAction(req.user.id, 'CREATE_SERVICE', `Created service: ${name}`);
         res.status(201).json(service);
     } catch (error) {
         res.status(500).json({ message: 'Failed to create service', error: error.message });
@@ -43,6 +55,7 @@ const updateSector = async (req, res) => {
             where: { id },
             data: { name, description, icon }
         });
+        await logAction(req.user.id, 'UPDATE_SECTOR', `Updated sector: ${name}`);
         res.json(sector);
     } catch (error) {
         res.status(500).json({ message: 'Failed to update sector', error: error.message });
@@ -52,7 +65,9 @@ const updateSector = async (req, res) => {
 const deleteSector = async (req, res) => {
     const { id } = req.params;
     try {
+        const sector = await prisma.serviceSector.findUnique({ where: { id } });
         await prisma.serviceSector.delete({ where: { id } });
+        await logAction(req.user.id, 'DELETE_SECTOR', `Deleted sector: ${sector.name}`);
         res.json({ message: 'Sector deleted' });
     } catch (error) {
         res.status(500).json({ message: 'Failed to delete sector', error: error.message });
@@ -67,6 +82,7 @@ const updateService = async (req, res) => {
             where: { id },
             data: { name, description, mode, availability, icon }
         });
+        await logAction(req.user.id, 'UPDATE_SERVICE', `Updated service: ${name}`);
         res.json(service);
     } catch (error) {
         res.status(500).json({ message: 'Failed to update service', error: error.message });
@@ -76,7 +92,9 @@ const updateService = async (req, res) => {
 const deleteService = async (req, res) => {
     const { id } = req.params;
     try {
+        const service = await prisma.service.findUnique({ where: { id } });
         await prisma.service.delete({ where: { id } });
+        await logAction(req.user.id, 'DELETE_SERVICE', `Deleted service: ${service.name}`);
         res.json({ message: 'Service deleted' });
     } catch (error) {
         res.status(500).json({ message: 'Failed to delete service', error: error.message });
