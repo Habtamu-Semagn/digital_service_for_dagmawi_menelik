@@ -101,4 +101,34 @@ const deleteService = async (req, res) => {
     }
 };
 
-module.exports = { getSectors, createSector, createService, updateSector, deleteSector, updateService, deleteService };
+const getServiceById = async (req, res) => {
+    const { serviceId } = req.params;
+
+    try {
+        const service = await prisma.service.findUnique({
+            where: { id: serviceId },
+            include: { sector: true }
+        });
+
+        if (!service) {
+            return res.status(404).json({
+                success: false,
+                message: 'Service not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: service
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch service',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { getSectors, createSector, createService, updateSector, deleteSector, updateService, deleteService, getServiceById };
+

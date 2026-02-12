@@ -204,4 +204,43 @@ const cancelTicket = async (req, res) => {
     }
 };
 
-module.exports = { takeTicket, getMyQueueStatus, getQueueList, updateQueueStatus, registerWalkIn, cancelTicket, getMyQueueHistory };
+const getQueueById = async (req, res) => {
+    const { queueId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const queue = await prisma.queue.findFirst({
+            where: { id: queueId, userId },
+            include: { service: { include: { sector: true } } }
+        });
+
+        if (!queue) {
+            return res.status(404).json({
+                success: false,
+                message: 'Queue not found'
+            });
+        }
+
+        const peopleAhead = await prisma.queue.count({
+            where: {
+                serviceId: queue.serviceId,
+                status: 'WAITING',
+                createdAt: { lt: queue.createdAt }
+            }
+        });
+
+        res.json({
+            success: true,
+            data: { ...queue, peopleAhead }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch queue',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { takeTicket, getMyQueueStatus, getQueueList, updateQueueStatus, registerWalkIn, cancelTicket, getMyQueueHistory, getQueueById };
+

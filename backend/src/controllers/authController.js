@@ -62,12 +62,18 @@ const login = async (req, res) => {
         );
 
         res.json({
-            token,
-            user: {
-                id: user.id,
-                name: user.name,
-                role: user.role,
-                phoneNumber: user.phoneNumber
+            success: true,
+            data: {
+                token,
+                refreshToken: token, // Using same token for now, can implement separate refresh token logic later
+                user: {
+                    id: user.id,
+                    email: user.phoneNumber + '@placeholder.com', // Mobile app expects email
+                    fullName: user.name,
+                    role: user.role,
+                    phoneNumber: user.phoneNumber,
+                    createdAt: user.createdAt.toISOString()
+                }
             }
         });
     } catch (error) {
@@ -130,4 +136,22 @@ const changePassword = async (req, res) => {
     }
 };
 
-module.exports = { register, login, updateProfile, changePassword };
+const logout = async (req, res) => {
+    // For JWT-based auth, logout is typically handled client-side
+    // But we can add server-side token blacklisting if needed in the future
+    try {
+        res.json({
+            success: true,
+            message: 'Logged out successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Logout failed',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { register, login, logout, updateProfile, changePassword };
+

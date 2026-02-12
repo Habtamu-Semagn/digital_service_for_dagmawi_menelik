@@ -21,12 +21,13 @@ export default function Login() {
         setLoading(true);
         setError('');
         try {
-            const { data } = await api.post('/auth/login', { phoneNumber, password });
-            login(data.user, data.token);
+            const { data: response } = await api.post('/auth/login', { phoneNumber, password });
+            const { user, token } = response.data;
+            login(user, token);
 
             // Redirect based on role
-            if (data.user.role === 'ADMIN') navigate('/admin');
-            else if (data.user.role === 'OFFICER' || data.user.role === 'HELPDESK') navigate('/officer');
+            if (user.role === 'ADMIN') navigate('/admin');
+            else if (user.role === 'OFFICER' || user.role === 'HELPDESK') navigate('/officer');
             else navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data?.message || 'Login failed. Please check your credentials.');

@@ -1,14 +1,16 @@
 const prisma = require('../utils/prisma');
 
 const bookAppointment = async (req, res) => {
-    const { serviceId, date, timeSlot } = req.body;
+    const { serviceId, date, appointmentDate, timeSlot } = req.body;
+    // Mobile app sends appointmentDate, web might send date
+    const bookingDate = date || appointmentDate;
     const userId = req.user.id;
 
     try {
         const existingAppointment = await prisma.appointment.findFirst({
             where: {
                 userId,
-                date: new Date(date),
+                date: new Date(bookingDate),
                 status: 'SCHEDULED'
             }
         });
@@ -21,7 +23,7 @@ const bookAppointment = async (req, res) => {
             data: {
                 userId,
                 serviceId,
-                date: new Date(date),
+                date: new Date(bookingDate),
                 timeSlot,
                 status: 'SCHEDULED'
             },
@@ -94,4 +96,85 @@ const getSectorAppointments = async (req, res) => {
     }
 };
 
-module.exports = { bookAppointment, getMyAppointments, getAvailableSlots, getSectorAppointments };
+const getAvailableSlotsQuery = async (req, res) => {
+    // Support query params for mobile app
+    const { serviceId, date } = req.query;
+    const slots = ["08:30 - 09:30", "09:30 - 10:30", "10:30 - 11:30", "14:00 - 15:00", "15:00 - 16:30"];
+
+    try {
+        const bookedAppointments = await prisma.appointment.findMany({
+            where: {
+                serviceId,
+                date: new Date(date),
+                status: 'SCHEDULED'
+            },
+            select: { timeSlot: true }
+        });
+
+        const bookedSlots = bookedAppointments.map(a => a.timeSlot);
+        const slotCounts = bookedSlots.reduce((acc, slot) => {
+            acc[slot] = (acc[slot] || 0) + 1;
+            return acc;
+        }, {});
+
+        const availableSlots = slots.map(slot => ({
+            slot,
+            isAvailable: (slotCounts[slot] || 0) < 3
+        }));
+
+        res.json({
+            success: true,
+            data: availableSlots
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to fetch slots',
+            error: error.message
+        });
+    }
+};
+
+const cancelAppointment = async (req, res) => {
+    const { appointmentId } = req.params;
+    const userId = req.user.id;
+
+    try {
+        const appointment = await prisma.appointment.findFirst({
+            where: { id: appointmentId, userId }
+        });
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: 'Appointment not found'
+            });
+        }
+
+        if (appointment.status !== 'SCHEDULED') {
+            return res.status(400).json({
+                success: false,
+                message: 'Only scheduled appointments can be cancelled'
+            });
+        }
+
+        await prisma.appointment.update({
+            where: { id: appointmentId },
+            data: { status: 'CANCELLED' }
+        });
+
+        res.json({
+            success: true,
+            message: 'Appointment cancelled successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: 'Failed to cancel appointment',
+            error: error.message
+        });
+    }
+};
+
+module.exports = { bookAppointment, getMyAppointments, getAvailableSlots, getSectorAppointments, getAvailableSlotsQuery, cancelAppointment };
+

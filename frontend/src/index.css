@@ -67,6 +67,15 @@
     --input: #e2e8f0;
     --ring: #059669;
     /* primary */
+
+    --sidebar-background: #ffffff;
+    --sidebar-foreground: #0f172a;
+    --sidebar-primary: #059669;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #f1f5f9;
+    --sidebar-accent-foreground: #1e293b;
+    --sidebar-border: #e2e8f0;
+    --sidebar-ring: #059669;
   }
 
   .dark {
@@ -103,6 +112,15 @@
     /* slate-800 */
     --input: #1e293b;
     --ring: #10b981;
+
+    --sidebar-background: #0f172a;
+    --sidebar-foreground: #f8fafc;
+    --sidebar-primary: #10b981;
+    --sidebar-primary-foreground: #020617;
+    --sidebar-accent: #1e293b;
+    --sidebar-accent-foreground: #f1f5f9;
+    --sidebar-border: #1e293b;
+    --sidebar-ring: #10b981;
   }
 
   * {

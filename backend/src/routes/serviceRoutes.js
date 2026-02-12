@@ -12,4 +12,7 @@ router.post('/services', authenticateToken, authorizeRoles('ADMIN'), serviceCont
 router.patch('/services/:id', authenticateToken, authorizeRoles('ADMIN'), serviceController.updateService);
 router.delete('/services/:id', authenticateToken, authorizeRoles('ADMIN'), serviceController.deleteService);
 
+// Mobile endpoint - get service by ID
+router.get('/:serviceId', authenticateToken, serviceController.getServiceById);
+
 module.exports = router;

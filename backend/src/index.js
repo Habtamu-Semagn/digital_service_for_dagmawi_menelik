@@ -10,6 +10,7 @@ const queueRoutes = require('./routes/queueRoutes');
 const appointmentRoutes = require('./routes/appointmentRoutes');
 const requestRoutes = require('./routes/requestRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -24,6 +25,7 @@ app.use('/api/queues', queueRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Basic health check
 app.get('/health', (req, res) => {
