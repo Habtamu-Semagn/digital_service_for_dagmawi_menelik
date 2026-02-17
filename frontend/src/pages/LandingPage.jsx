@@ -50,9 +50,7 @@ export default function LandingPage() {
             <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${isScrolled ? 'bg-background/80 backdrop-blur-lg border-b border-border py-4' : 'bg-transparent py-6'}`}>
                 <div className="container mx-auto px-6 flex justify-between items-center">
                     <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
-                            <Building2 className="text-primary-foreground w-6 h-6" />
-                        </div>
+                        <img src="/logo.png" alt="Logo" className="w-11 h-11 object-contain" />
                         <span className="text-xl font-bold tracking-tight hidden sm:block">
                             {lang === 'en' ? 'Dagmawi Menelik' : 'ዳግማዊ ምኒልክ'}
                         </span>
@@ -225,9 +223,7 @@ export default function LandingPage() {
                         <div className="grid lg:grid-cols-12 gap-16 lg:gap-24">
                             <div className="lg:col-span-5 space-y-8">
                                 <div className="flex items-center gap-3">
-                                    <div className="w-12 h-12 bg-primary rounded-2xl flex items-center justify-center">
-                                        <Building2 className="text-primary-foreground w-7 h-7" />
-                                    </div>
+                                    <img src="/logo.png" alt="Logo" className="w-12 h-12 object-contain" />
                                     <span className="text-2xl font-black tracking-tight uppercase">Dagmawi Menelik</span>
                                 </div>
                                 <p className="text-white/60 text-lg leading-relaxed max-w-md italic">{t.footerSlogan}</p>

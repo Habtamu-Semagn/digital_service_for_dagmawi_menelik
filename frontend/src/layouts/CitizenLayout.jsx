@@ -67,9 +67,7 @@ export default function CitizenLayout() {
             <Sidebar collapsible="icon" className="bg-card sticky top-0 self-start">
                 <SidebarHeader className="p-4">
                     <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shrink-0">
-                            <Building2 className="text-primary-foreground w-6 h-6" />
-                        </div>
+                        <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain shrink-0" />
                         <span className="font-black text-lg uppercase tracking-tight group-data-[collapsible=icon]:hidden">Dagmawi Portal</span>
                     </div>
                 </SidebarHeader>

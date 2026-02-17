@@ -36,7 +36,9 @@ import {
     Clock,
     RefreshCcw,
     Send,
-    AlertCircle
+    AlertCircle,
+    History,
+    PlayCircle
 } from 'lucide-react';
 
 export default function QueueManagement() {
@@ -81,7 +83,7 @@ export default function QueueManagement() {
         setLoading(true);
         try {
             const { data } = await api.get(`/queues/list/${selectedSector.id}`);
-            setQueues(data.filter(q => q.status !== 'COMPLETED' && q.status !== 'REJECTED'));
+            setQueues(data);
         } catch (err) {
             console.error('Failed to fetch queue', err);
         } finally {
@@ -134,11 +136,13 @@ export default function QueueManagement() {
         }
     };
 
-    const currentlyServing = queues.find(q => (q.status === 'CALLING' || q.status === 'PROCESSING') && q.officerId === user?.id);
-    const waitingCount = queues.filter(q => q.status === 'WAITING').length;
+    const activeQueues = queues.filter(q => q.status !== 'COMPLETED' && q.status !== 'REJECTED');
+    const recentlyCompleted = queues.filter(q => q.status === 'COMPLETED' || q.status === 'REJECTED');
+    const currentlyServing = activeQueues.find(q => (q.status === 'CALLING' || q.status === 'PROCESSING') && q.officerId === user?.id);
+    const waitingCount = activeQueues.filter(q => q.status === 'WAITING').length;
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-8 pb-20">
             {/* Header Section */}
             <div className="flex justify-between items-start">
                 <div>
@@ -336,16 +340,16 @@ export default function QueueManagement() {
             <Card className="rounded-[32px] border-border">
                 <CardHeader className="pb-4">
                     <CardTitle className="text-2xl font-black">
-                        {lang === 'en' ? 'Queue List' : 'የወረፋ ዝርዝር'}
+                        {lang === 'en' ? 'Active Queue' : 'የአሁኑ ተርታ'}
                     </CardTitle>
                     <CardDescription className="font-semibold">
-                        {queues.length} {lang === 'en' ? 'citizens in queue' : 'ዜጎች በወረፋ ውስጥ'}
+                        {activeQueues.length} {lang === 'en' ? 'citizens waiting' : 'ዜጎች በመጠባበቅ ላይ'}
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {queues.length > 0 ? (
+                    {activeQueues.length > 0 ? (
                         <div className="space-y-3">
-                            {queues.map((queue) => (
+                            {activeQueues.map((queue) => (
                                 <div
                                     key={queue.id}
                                     className={`p-6 rounded-2xl border-2 transition-all ${queue.status === 'CALLING' || queue.status === 'PROCESSING'
@@ -393,13 +397,48 @@ export default function QueueManagement() {
                             <h3 className="text-xl font-black text-muted-foreground mb-2">
                                 {lang === 'en' ? 'No Queue' : 'ወረፋ የለም'}
                             </h3>
-                            <p className="text-muted-foreground font-semibold">
+                            <p className="text-muted-foreground font-semibold mb-4">
                                 {lang === 'en' ? 'No citizens waiting in queue' : 'በወረፋ ውስጥ የሚጠብቁ ዜጎች የሉም'}
                             </p>
+                            <Button
+                                variant="outline"
+                                onClick={() => navigate('/officer/history')}
+                                className="rounded-xl font-bold gap-2"
+                            >
+                                <History className="w-4 h-4" />
+                                {lang === 'en' ? 'View Queue History' : 'የወረፋ ታሪክ ይመልከቱ'}
+                            </Button>
                         </div>
                     )}
                 </CardContent>
             </Card>
+
+            {/* Recently Completed */}
+            {recentlyCompleted.length > 0 && (
+                <Card className="rounded-[32px] border-border opacity-70">
+                    <CardHeader className="pb-4">
+                        <CardTitle className="text-xl font-black">
+                            {lang === 'en' ? 'Recently Processed' : 'በቅርብ የተጠናቀቁ'}
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            {recentlyCompleted.slice(0, 5).map((queue) => (
+                                <div key={queue.id} className="p-4 rounded-xl border border-border flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-4">
+                                        <span className="font-black text-primary">#{queue.ticketNumber}</span>
+                                        <span className="font-bold">{queue.user?.name}</span>
+                                        <span className="text-muted-foreground">{queue.service?.name}</span>
+                                    </div>
+                                    <Badge variant="outline" className="font-bold border-green-500/50 text-green-600">
+                                        {queue.status}
+                                    </Badge>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Forward Dialog */}
             <Dialog open={forwardDialog} onOpenChange={setForwardDialog}>

@@ -36,7 +36,7 @@ export default function Appointments() {
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
-    const [statusFilter, setStatusFilter] = useState('SCHEDULED');
+    const [statusFilter, setStatusFilter] = useState('all');
     const [sectors, setSectors] = useState([]);
     const [selectedSector, setSelectedSector] = useState(null);
 
@@ -95,9 +95,11 @@ export default function Appointments() {
 
     const getStatusColor = (status) => {
         switch (status) {
+            case 'PENDING': return 'bg-yellow-500';
             case 'SCHEDULED': return 'bg-blue-500';
             case 'COMPLETED': return 'bg-green-500';
             case 'CANCELLED': return 'bg-red-500';
+            case 'REJECTED': return 'bg-gray-500';
             default: return 'bg-muted';
         }
     };
@@ -168,6 +170,7 @@ export default function Appointments() {
                             </SelectTrigger>
                             <SelectContent>
                                 <SelectItem value="all">{lang === 'en' ? 'All Status' : 'ሁሉም ሁኔታ'}</SelectItem>
+                                <SelectItem value="PENDING">{lang === 'en' ? 'Pending Approval' : 'ፍቃድ በመጠባበቅ ላይ'}</SelectItem>
                                 <SelectItem value="SCHEDULED">{lang === 'en' ? 'Scheduled' : 'የተያዘ'}</SelectItem>
                                 <SelectItem value="COMPLETED">{lang === 'en' ? 'Completed' : 'ተጠናቋል'}</SelectItem>
                                 <SelectItem value="CANCELLED">{lang === 'en' ? 'Cancelled' : 'ተሰርዟል'}</SelectItem>
@@ -245,6 +248,28 @@ export default function Appointments() {
                                             >
                                                 <XCircle className="w-4 h-4" />
                                                 {lang === 'en' ? 'Cancel' : 'ሰርዝ'}
+                                            </Button>
+                                        </div>
+                                    )}
+
+                                    {app.status === 'PENDING' && (
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleUpdateStatus(app.id, 'SCHEDULED')}
+                                                className="rounded-xl font-bold bg-blue-600 hover:bg-blue-700 gap-2"
+                                            >
+                                                <CheckCircle className="w-4 h-4" />
+                                                {lang === 'en' ? 'Approve' : 'ፍቀድ'}
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                onClick={() => handleUpdateStatus(app.id, 'REJECTED')}
+                                                className="rounded-xl font-bold gap-2"
+                                            >
+                                                <XCircle className="w-4 h-4" />
+                                                {lang === 'en' ? 'Reject' : 'ውድቅ አድርግ'}
                                             </Button>
                                         </div>
                                     )}

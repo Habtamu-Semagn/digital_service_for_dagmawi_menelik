@@ -104,7 +104,12 @@ export default function Appointments() {
                                 </div>
                             </div>
                             <div className="flex items-center justify-between w-full md:w-auto md:justify-end gap-6">
-                                <Badge className="rounded-xl font-bold px-4 py-1.5 bg-primary/10 text-primary border-none text-sm uppercase italic">
+                                <Badge className={`rounded-xl font-bold px-4 py-1.5 border-none text-sm uppercase italic ${app.status === 'PENDING' ? 'bg-yellow-500/10 text-yellow-500' :
+                                        app.status === 'SCHEDULED' ? 'bg-blue-500/10 text-blue-500' :
+                                            app.status === 'COMPLETED' ? 'bg-green-500/10 text-green-500' :
+                                                app.status === 'CANCELLED' ? 'bg-red-500/10 text-red-500' :
+                                                    'bg-primary/10 text-primary'
+                                    }`}>
                                     {app.status}
                                 </Badge>
                                 <Button variant="outline" className="rounded-xl font-bold h-10 border-border md:hidden lg:flex" disabled>

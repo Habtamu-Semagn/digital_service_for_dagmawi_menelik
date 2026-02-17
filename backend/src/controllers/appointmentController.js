@@ -25,7 +25,7 @@ const bookAppointment = async (req, res) => {
                 serviceId,
                 date: new Date(bookingDate),
                 timeSlot,
-                status: 'SCHEDULED'
+                status: 'PENDING'
             },
             include: { service: true }
         });
@@ -36,9 +36,9 @@ const bookAppointment = async (req, res) => {
             await notificationModel.create({
                 data: {
                     userId,
-                    title: 'Appointment Confirmed',
-                    message: `Your appointment for ${appointment.service.name} is scheduled for ${new Date(bookingDate).toLocaleDateString()} at ${timeSlot}.`,
-                    type: 'APPOINTMENT_CONFIRMED',
+                    title: 'Appointment Request Received',
+                    message: `Your appointment request for ${appointment.service.name} has been received and is pending officer approval.`,
+                    type: 'APPOINTMENT_REQUESTED',
                     relatedId: appointment.id
                 }
             });
@@ -98,8 +98,7 @@ const getSectorAppointments = async (req, res) => {
     try {
         const appointments = await prisma.appointment.findMany({
             where: {
-                service: { sectorId },
-                status: 'SCHEDULED'
+                service: { sectorId }
             },
             include: { user: true, service: true },
             orderBy: [{ date: 'asc' }, { timeSlot: 'asc' }]
@@ -201,18 +200,47 @@ const updateAppointmentStatus = async (req, res) => {
             include: { service: true, user: true }
         });
 
-        // Notify user if status changed to COMPLETED or CANCELLED
+        // Notify user if status changed to SCHEDULED, COMPLETED, CANCELLED, or REJECTED
         const notificationModel = prisma.notification || prisma.notifications;
         if (notificationModel) {
-            await notificationModel.create({
-                data: {
-                    userId: appointment.userId,
-                    title: `Appointment ${status === 'COMPLETED' ? 'Completed' : 'Cancelled'}`,
-                    message: `Your appointment for ${appointment.service.name} has been marked as ${status.toLowerCase()}.`,
-                    type: status === 'COMPLETED' ? 'APPOINTMENT_COMPLETED' : 'APPOINTMENT_CANCELLED',
-                    relatedId: appointment.id
-                }
-            });
+            let title = '';
+            let message = '';
+            let type = '';
+
+            switch (status) {
+                case 'SCHEDULED':
+                    title = 'Appointment Approved';
+                    message = `Your appointment for ${appointment.service.name} has been approved for ${new Date(appointment.date).toLocaleDateString()} at ${appointment.timeSlot}.`;
+                    type = 'APPOINTMENT_CONFIRMED';
+                    break;
+                case 'COMPLETED':
+                    title = 'Appointment Completed';
+                    message = `Your appointment for ${appointment.service.name} has been marked as completed.`;
+                    type = 'APPOINTMENT_COMPLETED';
+                    break;
+                case 'CANCELLED':
+                    title = 'Appointment Cancelled';
+                    message = `Your appointment for ${appointment.service.name} has been cancelled.`;
+                    type = 'APPOINTMENT_CANCELLED';
+                    break;
+                case 'REJECTED':
+                    title = 'Appointment Rejected';
+                    message = `Your appointment for ${appointment.service.name} has been rejected.`;
+                    type = 'APPOINTMENT_REJECTED';
+                    break;
+            }
+
+            if (title) {
+                await notificationModel.create({
+                    data: {
+                        userId: appointment.userId,
+                        title,
+                        message,
+                        type,
+                        relatedId: appointment.id
+                    }
+                });
+            }
         }
 
         res.json({

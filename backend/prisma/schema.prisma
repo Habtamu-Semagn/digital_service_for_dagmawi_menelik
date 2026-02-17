@@ -94,7 +94,7 @@ model Appointment {
   id        String            @id @default(uuid())
   date      DateTime
   timeSlot  String
-  status    AppointmentStatus @default(SCHEDULED)
+  status    AppointmentStatus @default(PENDING)
   userId    String
   serviceId String
   createdAt DateTime          @default(now())
@@ -147,9 +147,11 @@ enum QueueStatus {
 }
 
 enum AppointmentStatus {
+  PENDING
   SCHEDULED
   COMPLETED
   CANCELLED
+  REJECTED
 }
 
 enum RequestStatus {
