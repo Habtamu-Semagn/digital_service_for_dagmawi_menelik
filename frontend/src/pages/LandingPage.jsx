@@ -52,14 +52,11 @@ export default function LandingPage() {
                             </div>
                             <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                                 <Link to="/login">
-                                    <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 h-14 rounded-2xl shadow-xl shadow-primary/20 font-bold group w-full sm:w-auto">
+                                    <Button size="lg" className="bg-primary hover:bg-primary/90 text-primary-foreground text-lg px-8 h-14 rounded-none shadow-xl shadow-primary/20 font-bold group w-full sm:w-auto">
                                         {t.heroCTA}
                                         <ArrowRight className="ml-2 w-6 h-6 group-hover:translate-x-1 transition-transform" />
                                     </Button>
                                 </Link>
-                                <Button size="lg" variant="outline" className="text-lg px-8 h-14 rounded-2xl border-2 font-bold hover:bg-accent/10">
-                                    {t.heroSecondary}
-                                </Button>
                             </div>
                         </div>
 
